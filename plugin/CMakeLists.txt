@@ -34,6 +34,7 @@ juce_add_plugin(PulseForge
 target_sources(PulseForge PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/DSP/PulseForgeDSP.cpp
 )
 
 target_include_directories(PulseForge PRIVATE Source)

@@ -29,7 +29,7 @@ void PulseForgeEditor::paint (juce::Graphics& g)
 
     g.setColour (labelDim);
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("M1 transport debug - silent", area.removeFromTop (16), juce::Justification::left);
+    g.drawText ("M2 DSP - demo pattern", area.removeFromTop (16), juce::Justification::left);
 
     area.removeFromTop (8);
 

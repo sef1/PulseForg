@@ -3,21 +3,26 @@
 VST3 instrument port of PulseForge, the Android acid groovebox. Targets Cubase
 on Windows first. Same GPL-3.0-only license as the app.
 
-## Status: M1 - transport skeleton
+## Status: M2 - full DSP, demo pattern
 
-Silent VST3 instrument that loads in Cubase and shows a transport debug
-readout: host tempo, play state, PPQ position, and the live 16-step position
-derived from the host timeline. No sound yet by design.
+The complete PulseForge engine runs in Cubase on the host transport: acid
+engines A/B, drum 8/9 machines, four-channel mixer, send delay and drive,
+sequenced sample-accurately from the host PPQ position. M2 plays the
+built-in demo pattern; parameters, banks and project state land in M3.
+
+The DSP is a 1:1 double-precision port of the Android engine. Verified
+against a reference renderer compiled from the actual Kotlin sources
+(`plugin/Tests/reference/`): acid engines bit-exact over 8 bars at
+126 BPM, drum energies statistically identical (PRNGs differ by design).
 
 Milestones:
 
-- **M1 (this)**: JUCE 9 VST3 shell, host-transport step counter, validation
-  clean (pluginval + Steinberg validator in CI).
-- **M2**: DSP port from the Android `SynthEngine`/`AcidVoiceModel`/
-  `AcidAccentModel` Kotlin sources, sample-accurate host-synced stepping,
-  sound matched against Android reference renders.
+- **M1**: JUCE 9 VST3 shell, host-transport step counter. Field-tested in
+  Cubase on Windows.
+- **M2 (this)**: DSP port, sample-accurate host-synced stepping, validated
+  against Android reference renders.
 - **M3**: full rack UI, automatable parameters, project JSON in the DAW
-  state chunk, Strudel bridge.
+  state chunk, pattern banks, Strudel bridge.
 - **M4**: beta on a real Cubase machine.
 
 ## Build (Windows)
@@ -50,10 +55,20 @@ host position; change tempo and confirm the steps stay locked.
 
 ## Tests
 
-Transport mapping unit tests (no JUCE needed):
+No JUCE needed for any of these:
 
 ```
 g++ -std=c++17 -o /tmp/TransportSyncTests plugin/Tests/TransportSyncTests.cpp && /tmp/TransportSyncTests
+g++ -std=c++17 -o /tmp/SequencerTests plugin/Tests/SequencerTests.cpp plugin/Source/DSP/PulseForgeDSP.cpp && /tmp/SequencerTests
+g++ -std=c++17 -O2 -o /tmp/RenderHarness plugin/Tests/RenderHarness.cpp plugin/Source/DSP/PulseForgeDSP.cpp && /tmp/RenderHarness /tmp/out.wav
+```
+
+Reference render from the real Kotlin sources (needs JDK + kotlinc):
+
+```
+kotlinc app/src/main/java/com/sefi/pulseforge/{AcidVoiceModel,AcidAccentModel,Pattern}.kt \
+  plugin/Tests/reference/ReferenceRender.kt -include-runtime -d /tmp/ref.jar
+java -jar /tmp/ref.jar /tmp/ref.wav [nodrums]
 ```
 
 ## Licensing

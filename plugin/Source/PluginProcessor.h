@@ -1,13 +1,17 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "DSP/PulseForgeDSP.h"
+#include "BlockSequencer.h"
 #include <atomic>
 
 /**
- * PulseForge VST3 - M1 milestone.
+ * PulseForge VST3 - M2 milestone.
  *
- * VST3 instrument shell: silent audio, transport-synced 16-step counter
- * exposed on atomics for the editor's debug readout. DSP lands in M2.
+ * Full DSP port running on the host transport: acid engines A/B, drum 8/9,
+ * mixer, send delay and drive, sequenced sample-accurately from the host
+ * PPQ position. M2 plays the built-in demo pattern; parameters, banks and
+ * project state land in M3.
  */
 class PulseForgeProcessor : public juce::AudioProcessor
 {
@@ -35,7 +39,7 @@ public:
     const juce::String getProgramName (int) override { return "Default"; }
     void changeProgramName (int, const juce::String&) override {}
 
-    // M1: no meaningful state yet. Project JSON lands in M3 via these hooks.
+    // M2: no meaningful state yet. Project JSON lands in M3 via these hooks.
     void getStateInformation (juce::MemoryBlock&) override {}
     void setStateInformation (const void*, int) override {}
 
@@ -47,5 +51,10 @@ public:
     std::atomic<int>    currentStep { 0 }; // 0-15
 
 private:
+    pulseforge::Pattern          pattern;
+    pulseforge::PulseForgeEngine engine;
+    pulseforge::BlockSequencer   sequencer;
+    double currentSampleRate = 44100.0;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PulseForgeProcessor)
 };

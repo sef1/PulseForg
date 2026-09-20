@@ -1,20 +1,28 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "TransportSync.h"
+#include "BlockSequencer.h"
+
+#include <cmath>
 
 PulseForgeProcessor::PulseForgeProcessor()
     : juce::AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
+    pattern = pulseforge::Pattern::demo();
+    engine.setPattern (pattern);
 }
 
-void PulseForgeProcessor::prepareToPlay (double, int) {}
+void PulseForgeProcessor::prepareToPlay (double sampleRate, int)
+{
+    currentSampleRate = sampleRate;
+    engine.prepare (sampleRate);
+    sequencer.wasPlaying = false;
+}
 
 bool PulseForgeProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto& mainOut = layouts.getMainOutputChannelSet();
 
-    // Synth: no input bus, stereo output (a disabled output bus is allowed
-    // so hosts and validators can query layouts during setup).
     if (mainOut != juce::AudioChannelSet::disabled() && mainOut != juce::AudioChannelSet::stereo())
         return false;
 
@@ -24,36 +32,38 @@ bool PulseForgeProcessor::isBusesLayoutSupported (const BusesLayout& layouts) co
 void PulseForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
-
-    // M1: silent output.
-    buffer.clear();
     midi.clear();
+
+    bool valid = false, playing = false;
+    double bpm = 0.0, ppq = 0.0;
 
     if (auto* playHead = getPlayHead())
     {
         if (const auto position = playHead->getPosition())
         {
-            hostPositionValid = true;
-            hostPlaying = position->getIsPlaying();
-
-            if (const auto bpm = position->getBpm())
-                hostBpm = *bpm;
-
-            if (const auto ppq = position->getPpqPosition())
-            {
-                hostPpq = *ppq;
-                currentStep = pulseforge::TransportStep::stepIndexForPpq (*ppq);
-            }
-        }
-        else
-        {
-            hostPositionValid = false;
+            valid = true;
+            playing = position->getIsPlaying();
+            if (const auto b = position->getBpm()) bpm = *b;
+            if (const auto p = position->getPpqPosition()) ppq = *p;
         }
     }
-    else
+
+    hostPositionValid = valid;
+    hostPlaying = playing;
+    if (valid)
     {
-        hostPositionValid = false;
+        hostBpm = bpm;
+        hostPpq = ppq;
+        currentStep = pulseforge::TransportStep::stepIndexForPpq (ppq);
     }
+
+    const int numSamples = buffer.getNumSamples();
+    float* outL = buffer.getWritePointer (0);
+    float* outR = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : buffer.getWritePointer (0);
+
+    if (! sequencer.renderBlock (engine, currentSampleRate, valid, playing,
+                                 bpm, ppq, outL, outR, numSamples))
+        buffer.clear();
 }
 
 juce::AudioProcessorEditor* PulseForgeProcessor::createEditor()
