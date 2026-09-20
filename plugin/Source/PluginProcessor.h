@@ -6,12 +6,16 @@
 #include <atomic>
 
 /**
- * PulseForge VST3 - M2 milestone.
+ * PulseForge VST3 - M3a milestone.
  *
- * Full DSP port running on the host transport: acid engines A/B, drum 8/9,
- * mixer, send delay and drive, sequenced sample-accurately from the host
- * PPQ position. M2 plays the built-in demo pattern; parameters, banks and
- * project state land in M3.
+ * M2 DSP plus:
+ *  - 47 host-automatable parameters: both acid engines (13 each), the four
+ *    mixer channels (5 each) and the master drive. They map 1:1 onto the
+ *    engine's SynthParams/MixerChannel fields and are applied every block.
+ *  - DAW project state: getStateInformation/setStateInformation serialize
+ *    the Android ProjectStore JSON document (pattern banks, bank index,
+ *    synth and mixer settings), so sessions round-trip in Cubase and
+ *    projects stay interchangeable with the Android app.
  */
 class PulseForgeProcessor : public juce::AudioProcessor
 {
@@ -39,9 +43,8 @@ public:
     const juce::String getProgramName (int) override { return "Default"; }
     void changeProgramName (int, const juce::String&) override {}
 
-    // M2: no meaningful state yet. Project JSON lands in M3 via these hooks.
-    void getStateInformation (juce::MemoryBlock&) override {}
-    void setStateInformation (const void*, int) override {}
+    void getStateInformation (juce::MemoryBlock&) override;
+    void setStateInformation (const void*, int) override;
 
     // Transport readout state: written on the audio thread, read on the UI thread.
     std::atomic<bool>   hostPositionValid { false };
@@ -50,8 +53,18 @@ public:
     std::atomic<double> hostPpq { 0.0 };
     std::atomic<int>    currentStep { 0 }; // 0-15
 
+    juce::AudioProcessorValueTreeState apvts;
+
+    // Pattern banks (message/audio shared; bank editing UI lands in M3b).
+    pulseforge::Pattern banks[8];
+    int currentBank = 0;
+
 private:
-    pulseforge::Pattern          pattern;
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    float paramValue (const char* id) const;
+    void updateEngineFromParameters();
+    void setParamFromState (const char* id, double value01);
+
     pulseforge::PulseForgeEngine engine;
     pulseforge::BlockSequencer   sequencer;
     double currentSampleRate = 44100.0;
