@@ -38,7 +38,8 @@ PulseForgeProcessor::PulseForgeProcessor()
       apvts (*this, nullptr, "PARAMS", createParameterLayout())
 {
     banks[0] = pulseforge::Pattern::demo();
-    engine.setPattern (banks[0]);
+    editPattern = banks[0];
+    engine.setPattern (editPattern);
     updateEngineFromParameters();
 }
 
@@ -198,7 +199,20 @@ void PulseForgeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
 void PulseForgeProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
+    const auto json = juce::JSON::toString (buildProjectVar());
+    dest.setSize (json.getNumBytesAsUTF8());
+    dest.copyFrom (json.toRawUTF8(), 0, json.getNumBytesAsUTF8());
+}
+
+juce::String PulseForgeProcessor::exportProjectJson()
+{
+    return juce::JSON::toString (buildProjectVar());
+}
+
+juce::var PulseForgeProcessor::buildProjectVar()
+{
     updateEngineFromParameters();
+    storeCurrentBank(); // like GrooveboxView.exportProjectJson()
 
     // ProjectStore.kt-compatible document. Unknown fields are ignored by the
     // Android decoder, so the plugin-only extras live under "plugin".
@@ -256,9 +270,7 @@ void PulseForgeProcessor::getStateInformation (juce::MemoryBlock& dest)
     ext->setProperty ("mixerSolo", solos);
     root->setProperty ("plugin", juce::var (ext));
 
-    const auto json = juce::JSON::toString (juce::var (root));
-    dest.setSize (json.getNumBytesAsUTF8());
-    dest.copyFrom (json.toRawUTF8(), 0, json.getNumBytesAsUTF8());
+    return juce::var (root);
 }
 
 void PulseForgeProcessor::setParamFromState (const char* id, double value01)
@@ -269,17 +281,26 @@ void PulseForgeProcessor::setParamFromState (const char* id, double value01)
 
 void PulseForgeProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    const auto root = juce::JSON::parse (juce::String::fromUTF8 ((const char*) data, sizeInBytes));
+    applyProjectVar (juce::JSON::parse (juce::String::fromUTF8 ((const char*) data, sizeInBytes)));
+}
+
+bool PulseForgeProcessor::importProjectJson (const juce::String& json)
+{
+    return applyProjectVar (juce::JSON::parse (json));
+}
+
+bool PulseForgeProcessor::applyProjectVar (const juce::var& root)
+{
     if (! root.isObject() || root.getProperty ("app", "").toString() != "pulseforge")
-        return;
+        return false;
 
     // Pattern banks first (all-or-nothing, like PatternBankStore.restore).
     const auto banksVar = root.getProperty ("banks", juce::var());
     if (banksVar.isString()
         && pulseforge::PatternBankCodec::decodeBanks (banksVar.toString().toStdString(), banks))
     {
-        currentBank = juce::jlimit (0, 7, (int) root.getProperty ("bank", 0));
-        engine.setPattern (banks[currentBank]);
+        switchToBank ((int) root.getProperty ("bank", 0));
+        engine.setPattern (editPattern);
     }
 
     // Synth and mixer settings: missing fields keep their current value,
@@ -323,6 +344,7 @@ void PulseForgeProcessor::setStateInformation (const void* data, int sizeInBytes
     }
 
     updateEngineFromParameters();
+    return true;
 }
 
 juce::AudioProcessorEditor* PulseForgeProcessor::createEditor()

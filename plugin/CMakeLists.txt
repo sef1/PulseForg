@@ -35,6 +35,7 @@ target_sources(PulseForge PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/DSP/PulseForgeDSP.cpp
+    Source/UI/RackPanels.cpp
 )
 
 target_include_directories(PulseForge PRIVATE Source)

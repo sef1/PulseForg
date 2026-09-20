@@ -55,15 +55,34 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // Pattern banks (message/audio shared; bank editing UI lands in M3b).
+    // Pattern state, mirroring GrooveboxView: the engine always plays the
+    // edit buffer; banks hold 8 committed slots. Edits are lost on bank
+    // switch unless STORE commits them first (same as the Android app).
+    // The message thread mutates these while the audio thread reads -
+    // same tolerated race as the app's View/audio threads.
+    pulseforge::Pattern editPattern;
     pulseforge::Pattern banks[8];
     int currentBank = 0;
+
+    void storeCurrentBank() { banks[currentBank] = editPattern; }
+    void switchToBank (int index)
+    {
+        currentBank = juce::jlimit (0, 7, index);
+        editPattern = banks[currentBank];
+    }
+
+    /** ProjectStore v1 JSON of the current state (commits the edit buffer). */
+    juce::String exportProjectJson();
+    /** Applies a ProjectStore document; false when it is not PulseForge JSON. */
+    bool importProjectJson (const juce::String&);
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     float paramValue (const char* id) const;
     void updateEngineFromParameters();
     void setParamFromState (const char* id, double value01);
+    juce::var buildProjectVar();
+    bool applyProjectVar (const juce::var& root);
 
     pulseforge::PulseForgeEngine engine;
     pulseforge::BlockSequencer   sequencer;

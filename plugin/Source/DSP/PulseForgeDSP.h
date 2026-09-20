@@ -44,6 +44,20 @@ struct Pattern
     DrumPattern drum9;
 
     static Pattern demo(); // 1:1 port of Pattern.demo() in Pattern.kt
+
+    /** 1:1 port of Pattern.clear(): keeps notes, clears actives and drums. */
+    void clear()
+    {
+        for (int i = 0; i < 16; ++i)
+        {
+            acidA[i].active = false; acidA[i].accent = false;
+            acidA[i].velocity = 1;   acidA[i].slide = false;
+            acidB[i].active = false; acidB[i].accent = false;
+            acidB[i].velocity = 1;   acidB[i].slide = false;
+            drum8.kick[i] = drum8.snare[i] = drum8.hat[i] = drum8.clap[i] = false;
+            drum9.kick[i] = drum9.snare[i] = drum9.hat[i] = drum9.clap[i] = false;
+        }
+    }
 };
 
 struct SynthParams

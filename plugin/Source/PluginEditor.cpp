@@ -1,74 +1,59 @@
 #include "PluginEditor.h"
 
-namespace
-{
-const juce::Colour panel      { 0xff1b1b1e };
-const juce::Colour panelEdge  { 0xff333338 };
-const juce::Colour ledOff     { 0xff3a2023 };
-const juce::Colour ledOn      { 0xffff3226 };
-const juce::Colour labelDim   { 0xff8f8f99 };
-const juce::Colour labelMain  { 0xffe8e8ee };
-} // namespace
-
 PulseForgeEditor::PulseForgeEditor (PulseForgeProcessor& p)
-    : juce::AudioProcessorEditor (p), processor (p)
+    : juce::AudioProcessorEditor (p),
+      processor (p),
+      header (p),
+      synthA (p, 0, [this] (int t) { selectTrack (t); }),
+      synthB (p, 1, [this] (int t) { selectTrack (t); }),
+      drums (p, [this] (int t) { selectTrack (t); }),
+      mixer (p, [this] (int t) { selectTrack (t); }),
+      footer (p)
 {
-    setSize (480, 210);
+    addAndMakeVisible (header);
+    addAndMakeVisible (synthA);
+    addAndMakeVisible (synthB);
+    addAndMakeVisible (drums);
+    addAndMakeVisible (mixer);
+    addAndMakeVisible (footer);
+    setSize (1020, 640);
     startTimerHz (30);
 }
 
 void PulseForgeEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (panel);
+    g.fillAll (rack::darkBg);
+}
 
-    auto area = getLocalBounds().reduced (16);
+void PulseForgeEditor::resized()
+{
+    auto area = getLocalBounds().reduced (14);
 
-    g.setColour (ledOn);
-    g.setFont (juce::Font (juce::FontOptions (20.0f, juce::Font::bold)));
-    g.drawText ("PULSEFORGE", area.removeFromTop (26), juce::Justification::left);
+    header.setBounds (area.removeFromTop (64));
+    area.removeFromTop (10);
 
-    g.setColour (labelDim);
-    g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("M3a - 47 host parameters, project state saved", area.removeFromTop (16), juce::Justification::left);
+    auto cols = area.removeFromTop (400);
+    auto left = cols.removeFromLeft ((cols.getWidth() - 12) / 2);
+    cols.removeFromLeft (12);
 
-    area.removeFromTop (8);
+    synthA.setBounds (left.removeFromTop (195));
+    left.removeFromTop (10);
+    synthB.setBounds (left);
 
-    const bool valid   = processor.hostPositionValid.load();
-    const bool playing = processor.hostPlaying.load();
-    const auto bpm     = processor.hostBpm.load();
-    const auto ppq     = processor.hostPpq.load();
-    const int  step    = processor.currentStep.load();
+    drums.setBounds (cols.removeFromTop (195));
+    cols.removeFromTop (10);
+    mixer.setBounds (cols);
 
-    // 16 step LEDs
-    auto ledRow = area.removeFromTop (30);
-    const int ledWidth = ledRow.getWidth() / 16;
-    for (int i = 0; i < 16; ++i)
-    {
-        auto box = ledRow.removeFromLeft (ledWidth).reduced (3);
-        const bool active = valid && playing && i == step;
-        g.setColour (active ? ledOn : ledOff);
-        g.fillRect (box);
-        g.setColour (panelEdge);
-        g.drawRect (box);
-    }
+    area.removeFromTop (10);
+    footer.setBounds (area);
+}
 
-    area.removeFromTop (14);
-
-    g.setFont (juce::Font (juce::FontOptions (14.0f)));
-
-    if (! valid)
-    {
-        g.setColour (labelDim);
-        g.drawText ("NO HOST SYNC", area.removeFromTop (20), juce::Justification::left);
-    }
-    else
-    {
-        g.setColour (labelMain);
-        g.drawText ("BPM " + juce::String (bpm, 1) + "    PPQ " + juce::String (ppq, 2),
-                    area.removeFromTop (20), juce::Justification::left);
-
-        g.setColour (playing ? ledOn : labelDim);
-        g.drawText (playing ? ("PLAYING   STEP " + juce::String (step + 1) + " / 16") : "STOPPED",
-                    area.removeFromTop (20), juce::Justification::left);
-    }
+void PulseForgeEditor::timerCallback()
+{
+    header.update();
+    synthA.update (selectedTrack);
+    synthB.update (selectedTrack);
+    drums.update (selectedTrack);
+    mixer.update (selectedTrack);
+    footer.update();
 }
