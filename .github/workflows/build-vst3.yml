@@ -1,0 +1,45 @@
+name: build-vst3
+
+on:
+  push:
+    paths:
+      - 'plugin/**'
+      - '.github/workflows/build-vst3.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-vst3:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S plugin -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3
+        run: cmake --build build --config Release --target PulseForge_VST3
+
+      - name: Validate with pluginval (headless)
+        shell: pwsh
+        run: |
+          curl -L -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval-bin
+          $pv = Get-ChildItem -Path pluginval-bin -Recurse -Filter pluginval.exe | Select-Object -First 1
+          & $pv.FullName --strictness-level 8 --validate-in-process --skip-gui-tests --timeout-ms 180000 "$PWD/build/PulseForge_artefacts/Release/VST3/PulseForge.vst3"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate with Steinberg validator
+        shell: pwsh
+        run: |
+          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/steinbergmedia/vst3sdk.git vst3sdk
+          cmake -S vst3sdk -B vst3sdk-build
+          cmake --build vst3sdk-build --config Release --target validator
+          $validator = Get-ChildItem -Path vst3sdk-build -Recurse -Filter validator.exe | Select-Object -First 1
+          & $validator.FullName "$PWD/build/PulseForge_artefacts/Release/VST3/PulseForge.vst3"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload PulseForge.vst3
+        uses: actions/upload-artifact@v4
+        with:
+          name: PulseForge-vst3-windows-x64
+          path: build/PulseForge_artefacts/Release/VST3/PulseForge.vst3
