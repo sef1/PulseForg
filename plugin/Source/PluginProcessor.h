@@ -76,6 +76,11 @@ public:
     /** Applies a ProjectStore document; false when it is not PulseForge JSON. */
     bool importProjectJson (const juce::String&);
 
+    /** strudel.cc long URL carrying the edit buffer as Strudel code. */
+    juce::String exportStrudelUrl();
+    /** Imports Strudel code or a strudel.cc URL into the edit buffer. */
+    bool importStrudel (const juce::String&);
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     float paramValue (const char* id) const;

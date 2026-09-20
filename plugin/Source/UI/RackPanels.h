@@ -22,6 +22,7 @@ private:
     PulseForgeProcessor& proc;
     RackDisplay bpmDisplay { "BPM" };
     RackButton exportBtn { "EXPORT", rack::steel2 }, importBtn { "IMPORT", rack::steel2 };
+    RackButton strudelOutBtn { "STRD OUT", rack::steel2 }, strudelInBtn { "STRD IN", rack::steel2 };
     juce::String lastTransport;
 };
 

@@ -3,6 +3,7 @@
 #include "TransportSync.h"
 #include "BlockSequencer.h"
 #include "PatternBankCodec.h"
+#include "StrudelBridgeCore.h"
 
 #include <cmath>
 
@@ -345,6 +346,25 @@ bool PulseForgeProcessor::applyProjectVar (const juce::var& root)
 
     updateEngineFromParameters();
     return true;
+}
+
+juce::String PulseForgeProcessor::exportStrudelUrl()
+{
+    updateEngineFromParameters();
+    const auto code = pulseforge::StrudelBridgeCore::exportCode (
+        editPattern, hostBpm.load() > 0.0 ? (float) hostBpm.load() : 126.0f,
+        engine.synth[0].squareWave, engine.synth[1].squareWave);
+    const auto b64 = juce::Base64::toBase64 (code.data(), code.size());
+    return "https://strudel.cc/#" + juce::URL::addEscapeChars (b64, true);
+}
+
+bool PulseForgeProcessor::importStrudel (const juce::String& text)
+{
+    auto r = pulseforge::StrudelBridgeCore::importCode (text.toStdString());
+    if (! r.hasPattern)
+        return false;
+    editPattern = r.pattern; // GrooveboxView.importStrudel: pattern.copyFrom(it)
+    return true;             // bpm intentionally ignored: the host owns tempo
 }
 
 juce::AudioProcessorEditor* PulseForgeProcessor::createEditor()

@@ -43,6 +43,18 @@ HeaderPanel::HeaderPanel (PulseForgeProcessor& p) : proc (p)
     addAndMakeVisible (bpmDisplay);
     addAndMakeVisible (exportBtn);
     addAndMakeVisible (importBtn);
+    addAndMakeVisible (strudelOutBtn);
+    addAndMakeVisible (strudelInBtn);
+    strudelOutBtn.onClick = [this]
+    {
+        juce::SystemClipboard::copyTextToClipboard (proc.exportStrudelUrl());
+        strudelOutBtn.setBaseColour (rack::green);
+    };
+    strudelInBtn.onClick = [this]
+    {
+        const auto text = juce::SystemClipboard::getTextFromClipboard();
+        strudelInBtn.setBaseColour (proc.importStrudel (text) ? rack::green : rack::red);
+    };
     exportBtn.onClick = [this]
     {
         juce::SystemClipboard::copyTextToClipboard (proc.exportProjectJson());
@@ -81,13 +93,15 @@ void HeaderPanel::paint (juce::Graphics& g)
         transport = "STOPPED";
     g.setColour (tc);
     g.setFont (rack::boldFont (h * .22f));
-    g.drawText (transport, (int) (w * .34f), 0, (int) (w * .24f), (int) h, juce::Justification::centred);
+    g.drawText (transport, (int) (w * .26f), 0, (int) (w * .20f), (int) h, juce::Justification::centred);
     lastTransport = transport;
 }
 
 void HeaderPanel::resized()
 {
     const float w = (float) getWidth(), h = (float) getHeight();
+    strudelOutBtn.setBounds ((int) (w * .462f), (int) (h * .18f), (int) (w * .070f), (int) (h * .64f));
+    strudelInBtn.setBounds ((int) (w * .537f), (int) (h * .18f), (int) (w * .058f), (int) (h * .64f));
     exportBtn.setBounds ((int) (w * .60f), (int) (h * .18f), (int) (w * .085f), (int) (h * .64f));
     importBtn.setBounds ((int) (w * .695f), (int) (h * .18f), (int) (w * .085f), (int) (h * .64f));
     bpmDisplay.setBounds ((int) (w * .83f), (int) (h * .10f), (int) (w * .14f), (int) (h * .80f));
