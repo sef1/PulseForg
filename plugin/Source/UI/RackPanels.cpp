@@ -132,6 +132,9 @@ SynthPanel::SynthPanel (PulseForgeProcessor& p, int engineIndex, std::function<v
         addAndMakeVisible (*b);
 
     addChildComponent (knobRow);
+    // The mode rows are full-panel containers: they must not swallow clicks
+    // meant for the buttons beneath them (children still receive theirs).
+    knobRow.setInterceptsMouseClicks (false, true);
     for (int i = 0; i < 6; ++i)
     {
         styleRackKnob (knobs[i]);
@@ -140,6 +143,7 @@ SynthPanel::SynthPanel (PulseForgeProcessor& p, int engineIndex, std::function<v
     }
 
     addChildComponent (advRow);
+    advRow.setInterceptsMouseClicks (false, true);
     for (int i = 0; i < 2; ++i)
     {
         styleRackKnob (advKnobs[i]);
@@ -154,6 +158,7 @@ SynthPanel::SynthPanel (PulseForgeProcessor& p, int engineIndex, std::function<v
     advCaption.setColour (juce::Label::textColourId, rack::dimText);
 
     addChildComponent (stepEditRow);
+    stepEditRow.setInterceptsMouseClicks (false, true);
     static const char* const noteNames[7] = { "C", "D", "E", "F", "G", "A", "B" };
     for (int i = 0; i < 7; ++i)
     {
