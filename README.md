@@ -2,7 +2,7 @@
 
 PulseForge is a clean-room Android acid groovebox with two monophonic synth voices, two original synthesized drum sections, a four-channel mixer, pattern and project storage, and a Strudel text bridge.
 
-## 0.7 features
+## 0.7.2 features
 
 - Two independent 16-step acid-inspired synth voices with saw/square selection
 - Per-step note, octave, velocity, accent, and slide editing

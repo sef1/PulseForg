@@ -72,7 +72,8 @@ fun main(args: Array<String>) {
     // Loop body ported 1:1 from SynthEngine.kt runAudio(); PCM16 track writes
     // replaced by float accumulation, Random by a seeded instance.
     val out = ArrayList<Float>(16 * 8 * 5250 * 2)
-    var phaseA=0.0; var phaseB=0.0; var lpA=0.0; var lpB=0.0; var prevA=0.0; var prevB=0.0
+    var phaseA=0.0; var phaseB=0.0
+    val filterA=AcidResonantFilter(sampleRate.toDouble()); val filterB=AcidResonantFilter(sampleRate.toDouble())
     var delayL=0.0; var delayR=0.0
     val accentA=AcidAccentModel(sampleRate); val accentB=AcidAccentModel(sampleRate)
     val totalSteps = 16 * 8
@@ -96,20 +97,18 @@ fun main(args: Array<String>) {
                 val accentFrame=accentA.sample(t,a.accent,pa.accentAmount.toDouble(),pa.resonance.toDouble(),pa.decay.toDouble(),pa.accentDecay.toDouble())
                 val ampEnv=AcidVoiceModel.amplitudeEnvelope(t,frames.toDouble()/sampleRate,pa.extendedEnvelope,pa.attack.toDouble(),pa.decay.toDouble(),pa.sustain.toDouble(),pa.release.toDouble())
                 val sweep=1.0+pa.envMod*accentFrame.filterEnvelope*1.8+accentFrame.filterSweep*.34
-                val coeff=(.012+pa.cutoff*pa.cutoff*.34*sweep).coerceIn(.01,.48)
-                lpA+=coeff*(raw-lpA+pa.resonance*(lpA-prevA)*1.7); prevA=lpA
+                val filtered=filterA.process(raw,pa.cutoff.toDouble(),sweep,pa.resonance.toDouble())
                 val velocity=if(a.velocity==2)1.28 else 1.0
-                acidA=lpA*ampEnv*.31*velocity*(1.0+accentFrame.amplitudeLift)
+                acidA=filtered*ampEnv*.31*velocity*(1.0+accentFrame.amplitudeLift)
             }
             if(b.active) {
                 val currentFb=AcidVoiceModel.glideFrequency(fromFb,fb,t,slideB,pb.slideTime.toDouble()); phaseB=(phaseB+currentFb/sampleRate)%1.0; val raw=AcidVoiceModel.oscillator(phaseB,pb.squareWave)
                 val accentFrame=accentB.sample(t,b.accent,pb.accentAmount.toDouble(),pb.resonance.toDouble(),pb.decay.toDouble(),pb.accentDecay.toDouble())
                 val ampEnv=AcidVoiceModel.amplitudeEnvelope(t,frames.toDouble()/sampleRate,pb.extendedEnvelope,pb.attack.toDouble(),pb.decay.toDouble(),pb.sustain.toDouble(),pb.release.toDouble())
                 val sweep=1.0+pb.envMod*accentFrame.filterEnvelope*1.8+accentFrame.filterSweep*.34
-                val coeff=(.012+pb.cutoff*pb.cutoff*.34*sweep).coerceIn(.01,.48)
-                lpB+=coeff*(raw-lpB+pb.resonance*(lpB-prevB)*1.7); prevB=lpB
+                val filtered=filterB.process(raw,pb.cutoff.toDouble(),sweep,pb.resonance.toDouble())
                 val velocity=if(b.velocity==2)1.28 else 1.0
-                acidB=lpB*ampEnv*.28*velocity*(1.0+accentFrame.amplitudeLift)
+                acidB=filtered*ampEnv*.28*velocity*(1.0+accentFrame.amplitudeLift)
             }
             if(d8.kick[step]) drums8+=sin(2*PI*(48.0+105.0*exp(-t*30))*t)*exp(-t*13)*.58
             if(d8.snare[step]) drums8+=(rnd.nextDouble(-1.0,1.0)*.7+sin(2*PI*185*t)*.3)*exp(-t*22)*.24

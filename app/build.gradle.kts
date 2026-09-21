@@ -11,8 +11,8 @@ android {
         applicationId = "com.sefi.pulseforge"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 10
+        versionName = "0.7.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
