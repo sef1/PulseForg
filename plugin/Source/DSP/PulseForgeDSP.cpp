@@ -34,6 +34,31 @@ Pattern::Pattern()
     }
 }
 
+double AcidResonantFilter::process (double input, double cutoffControl, double sweep, double resonance)
+{
+    // Roughly 35 Hz..8 kHz before envelope modulation, then clamped below
+    // Nyquist. The soft input limit is the diode-ladder saturation analogue.
+    const double c = clamp01 (cutoffControl);
+    const double hz = std::fmin (sr * 0.20, std::fmax (25.0, (35.0 + c * c * 8000.0) * sweep));
+    const double g = std::tan (3.14159265358979323846 * hz / sr);
+
+    // k = 1/Q. The exponential taper leaves most of the knob musical, while
+    // the last quarter reaches the ringing / near-self-oscillating region.
+    const double r = clamp01 (resonance);
+    const double k = 0.025 + 1.975 * std::pow (1.0 - r, 2.35);
+    const double a1 = 1.0 / (1.0 + g * (g + k));
+    const double driven = std::tanh (input * (1.0 + r * 0.85));
+    const double v3 = driven - ic2eq;
+    const double v1 = a1 * ic1eq + a1 * g * v3;
+    const double v2 = ic2eq + g * v1;
+    ic1eq = 2.0 * v1 - ic1eq;
+    ic2eq = 2.0 * v2 - ic2eq;
+
+    // Small resonance compensation keeps low settings close to the accepted
+    // engine level without crushing the high-Q peak downstream.
+    return std::tanh (v2 * (1.0 + r * 0.28));
+}
+
 void AcidAccentModel::beginStep (bool accented, double amount)
 {
     if (accented)
@@ -116,7 +141,8 @@ void PulseForgeEngine::prepare (double sampleRate)
 void PulseForgeEngine::reset()
 {
     phaseA = phaseB = 0.0;
-    lpA = lpB = prevA = prevB = 0.0;
+    filterA.prepare (sr);
+    filterB.prepare (sr);
     delayL = delayR = 0.0;
     accentA.reset();
     accentB.reset();
@@ -182,11 +208,9 @@ void PulseForgeEngine::renderSample (int step, double t, long long i, double ste
         const double ampEnv = AcidVoiceModel::amplitudeEnvelope (t, stepSeconds, pa.extendedEnvelope,
                                                                  pa.attack, pa.decay, pa.sustain, pa.release);
         const double sweep = 1.0 + pa.envMod * accentFrame.filterEnvelope * 1.8 + accentFrame.filterSweep * 0.34;
-        const double coeff = std::fmin (std::fmax (0.012 + (double) (pa.cutoff * pa.cutoff) * 0.34 * sweep, 0.01), 0.48);
-        lpA += coeff * (raw - lpA + pa.resonance * (lpA - prevA) * 1.7);
-        prevA = lpA;
+        const double filtered = filterA.process (raw, pa.cutoff, sweep, pa.resonance);
         const double velocity = a.velocity == 2 ? 1.28 : 1.0;
-        acidA = lpA * ampEnv * 0.31 * velocity * (1.0 + accentFrame.amplitudeLift);
+        acidA = filtered * ampEnv * 0.31 * velocity * (1.0 + accentFrame.amplitudeLift);
     }
 
     if (b.active)
@@ -198,11 +222,9 @@ void PulseForgeEngine::renderSample (int step, double t, long long i, double ste
         const double ampEnv = AcidVoiceModel::amplitudeEnvelope (t, stepSeconds, pb.extendedEnvelope,
                                                                  pb.attack, pb.decay, pb.sustain, pb.release);
         const double sweep = 1.0 + pb.envMod * accentFrame.filterEnvelope * 1.8 + accentFrame.filterSweep * 0.34;
-        const double coeff = std::fmin (std::fmax (0.012 + (double) (pb.cutoff * pb.cutoff) * 0.34 * sweep, 0.01), 0.48);
-        lpB += coeff * (raw - lpB + pb.resonance * (lpB - prevB) * 1.7);
-        prevB = lpB;
+        const double filtered = filterB.process (raw, pb.cutoff, sweep, pb.resonance);
         const double velocity = b.velocity == 2 ? 1.28 : 1.0;
-        acidB = lpB * ampEnv * 0.28 * velocity * (1.0 + accentFrame.amplitudeLift);
+        acidB = filtered * ampEnv * 0.28 * velocity * (1.0 + accentFrame.amplitudeLift);
     }
 
     const double twoPi = 2.0 * 3.14159265358979323846;

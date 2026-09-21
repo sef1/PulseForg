@@ -94,6 +94,23 @@ struct AcidAccentFrame
     double retainedCharge;
 };
 
+
+/** Non-linear TPT state-variable low-pass tuned for acid resonance.
+ *  The old single-pole differentiator feedback could not self-oscillate. This
+ *  topology remains stable at audio-rate cutoff sweeps while approaching a
+ *  high-Q ringing state at the top of the RESO control.
+ */
+class AcidResonantFilter
+{
+public:
+    void prepare (double sampleRate) { sr = sampleRate > 1.0 ? sampleRate : 44100.0; reset(); }
+    void reset() { ic1eq = ic2eq = 0.0; }
+    double process (double input, double cutoffControl, double sweep, double resonance);
+
+private:
+    double sr = 44100.0, ic1eq = 0.0, ic2eq = 0.0;
+};
+
 /** 1:1 port of AcidAccentModel.kt. */
 class AcidAccentModel
 {
@@ -153,7 +170,7 @@ private:
     double sr = 44100.0;
 
     double phaseA = 0.0, phaseB = 0.0;
-    double lpA = 0.0, lpB = 0.0, prevA = 0.0, prevB = 0.0;
+    AcidResonantFilter filterA, filterB;
     double delayL = 0.0, delayR = 0.0;
 
     AcidAccentModel accentA { 44100.0 }, accentB { 44100.0 };
