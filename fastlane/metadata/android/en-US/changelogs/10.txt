@@ -1,0 +1,1 @@
+Adds a nonlinear high-resonance filter with a stronger acid-style whistle while preserving accent coupling.

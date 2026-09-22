@@ -1,0 +1,16 @@
+PulseForge is a touch-based acid groovebox for writing and playing patterns on your phone.
+
+Features:
+
+* Two independent monophonic acid synth voices
+* Saw and square waveforms
+* Per-step notes, octave, velocity, accent, and slide
+* Slide-time, accent-decay, and ADSR controls
+* Two synthesized drum machines, each with kick, snare, hat, and clap
+* 16-step sequencing and eight pattern banks
+* Four-channel mixer with level, pan, send, mute, and solo
+* JSON project save and load
+* Export to and import from a limited subset of Strudel pattern text
+* Open exported patterns at strudel.cc for browser playback
+
+All synth and drum sounds are generated in the app. PulseForge does not include proprietary samples or code. The Strudel engine is not embedded or distributed.
